@@ -9,13 +9,6 @@ String StringBuff = "";
 
 #define J_COMMAND "C"
 #define COMMS_MOTOR_1 200
-#define COMMS_MOTOR_2 201
-#define COMMS_MOTOR_3 202
-#define COMMS_MOTOR_4 203
-#define COMMS_MOTOR_5 204
-#define COMMS_MOTOR_6 205
-#define COMMS_MOTOR_7 206
-#define COMMS_MOTOR_8 207
 
 void setup() {
   // put your setup code here, to run once:

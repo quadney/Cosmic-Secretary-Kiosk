@@ -3,6 +3,7 @@ const Serial = require('raspi-serial').Serial;
 const ephemeris = require('ephemeris');
 const moment = require('moment');
 
+const fs = require('fs');
 const config = JSON.parse(fs.readFileSync(`${__dirname}/public/config.json`));
 
 const locationDict = {

@@ -28,7 +28,7 @@ HT16K33 timezoneDisplay;
 Adafruit_MPR121 cap = Adafruit_MPR121();
 uint16_t lasttouched = 0;
 uint16_t currtouched = 0;
-#define TOUCH_PIN 0
+uint16_t TOUCH_PIN = 5;
 #ifndef _BV
 #define _BV(bit) (1 << (bit)) 
 #endif
@@ -40,8 +40,8 @@ uint16_t currtouched = 0;
 Adafruit_seesaw encoders[4];
 //TODO: make this an enum, forget how to do in arduino
 #define MONTH_ENCODER 0
-#define YEAR_ENCODER 1
-#define DAY_ENCODER 2
+#define DAY_ENCODER 1
+#define YEAR_ENCODER 2
 #define TIMEZONE_ENCODER 3
 
 int32_t encoder_positions[] = {0, 0, 0, 0};
@@ -63,9 +63,9 @@ int currentYear = 1993;
 #define END_DAY_LONG 31
 int currentDay = START_DAY;
 
-#define TIMEZONES 16
+#define TIMEZONES 9
 int currentTimezoneIndex = 0;
-String timezones[] = {"AEST", "ACST", "AFT", "AKST", "AST", "AWST", "CAT", "CET", "CST", "EAT", "EET", "EST", "MSK", "MST", "PST", "WET", "HST", "JST", "GMT", };
+String timezones[] = {"N-AM", "S-AM", "EURO", "AFRI", "AUST", "OCEA", "W-AS", "C-AS", "E-AS"};
 
 void setup() {
   SerialUSB.begin(115200);
@@ -79,26 +79,45 @@ void setup() {
 
   // setup outputs
   setupDisplays();
+
+  SerialUSB.println("0");
 }
 
 void loop() {
   uint16_t display_line = 1;
-  CommChannel.pollSerial();
 
   // check capacative touch 
-  // Get the currently touched pads
-  currtouched = cap.touched();
-  if ((currtouched & _BV(TOUCH_PIN)) && !(lasttouched & _BV(TOUCH_PIN)) ) {
-    // send the info to the computer once
-      SerialUSB.print(TOUCH_PIN); SerialUSB.println(" touched");
-    }
-    // if it *was* touched and now *isnt*, alert!
-    if (!(currtouched & _BV(TOUCH_PIN)) && (lasttouched & _BV(TOUCH_PIN)) ) {
-      // tell the computer that not touched anymore
-      SerialUSB.print(TOUCH_PIN); SerialUSB.println(" released");
-    }
+  checkCapSensor();
 
   // check encoders
+  checkEncoders();
+
+  // don't overwhelm serial port
+  yield();
+  delay(10);
+}
+
+//// LOOPING METHODS
+void checkCapSensor() {
+  // Get the currently touched pads
+  currtouched = cap.touched();
+  
+  for (uint8_t i=0; i<12; i++) {
+    // it if *is* touched and *wasnt* touched before, alert!
+    if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
+      sendComputerCurrentData();
+    }
+    // if it *was* touched and now *isnt*, alert!
+    if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
+      SerialUSB.println(";");
+    }
+  }
+
+  // reset our state
+  lasttouched = currtouched;
+}
+
+void checkEncoders() {
   for (uint8_t enc = 0; enc<sizeof(found_encoders); enc++) { 
      if (found_encoders[enc] == false) continue;
   
@@ -110,11 +129,13 @@ void loop() {
        if (enc == MONTH_ENCODER) {
          currentMonthIndex += deltaChange;
          currentMonthIndex = constrain(currentMonthIndex, 0, MONTHS - 1);
+         checkCurrentDay();
          updateMonthDisplay();
        }
        else if (enc == YEAR_ENCODER) {
         currentYear += deltaChange;
         currentYear = constrain(currentYear, START_YEAR, END_YEAR);
+        checkCurrentDay();
         updateYearDisplay();
        }
        else if (enc == TIMEZONE_ENCODER) {
@@ -124,52 +145,48 @@ void loop() {
        }
        else if (enc == DAY_ENCODER) {
         currentDay += deltaChange;
-        String currentMonth = months[currentMonthIndex];
-          if (currentMonth.equals("APR") || currentMonth.equals("JUN") || 
-              currentMonth.equals("SEP") || currentMonth.equals("NOV")) {
-            currentDay = constrain(currentDay, START_DAY, END_DAY);
-          }
-          else if (currentMonth.equals("FEB")) {
-            if (currentYear % 4 == 0) {
-              currentDay = constrain(currentDay, START_DAY, END_DAY_FEB_LEAP);
-            }
-            else {
-              currentDay = constrain(currentDay, START_DAY, END_DAY_FEB);
-            }
-          }
-          else {
-            currentDay = constrain(currentDay, START_DAY, END_DAY_LONG);
-          }
-          updateDayDisplay();
+         checkCurrentDay();
        }
-       
        encoder_positions[enc] = new_position;
      }
   }
-
-  // don't overwhelm serial port
-  yield();
-  delay(10);
 }
 
+void checkCurrentDay() {
+  String currentMonth = months[currentMonthIndex];
+  if (currentMonth.equals("APR") || currentMonth.equals("JUN") || 
+      currentMonth.equals("SEP") || currentMonth.equals("NOV")) {
+    currentDay = constrain(currentDay, START_DAY, END_DAY);
+  }
+  else if (currentMonth.equals("FEB")) {
+    if (currentYear % 4 == 0) {
+      currentDay = constrain(currentDay, START_DAY, END_DAY_FEB_LEAP);
+    }
+    else {
+      currentDay = constrain(currentDay, START_DAY, END_DAY_FEB);
+    }
+  }
+  else {
+    currentDay = constrain(currentDay, START_DAY, END_DAY_LONG);
+  }
+  updateDayDisplay();
+}
+
+//// SETUP METHODS
 void setupEncoders() {
-  SerialUSB.println("Looking for seesaws!");
   for (uint8_t enc=0; enc<sizeof(found_encoders); enc++) {
     // See if we can find encoders on this address 
     if (! encoders[enc].begin(SEESAW_BASE_ADDR + enc)) {
       SerialUSB.print("Couldn't find encoder #");
       SerialUSB.println(enc);
-    } else {
-      SerialUSB.print("Found encoder + pixel #");
-      SerialUSB.println(enc);
-      
+    } 
+    else {
       uint32_t version = ((encoders[enc].getVersion() >> 16) & 0xFFFF);
       if (version != 4991){
         SerialUSB.print("Wrong firmware loaded? ");
         SerialUSB.println(version);
         while(1) delay(10);
       }
-      SerialUSB.println("Found Product 4991");
   
       // use a pin for the built in encoder switch
       encoders[enc].pinMode(SS_SWITCH, INPUT_PULLUP);
@@ -177,7 +194,6 @@ void setupEncoders() {
       // get starting position
       encoder_positions[enc] = encoders[enc].getEncoderPosition();
   
-      SerialUSB.println("Turning on interrupts");
       delay(10);
       encoders[enc].setGPIOInterrupts((uint32_t)1 << SS_SWITCH, 1);
       encoders[enc].enableEncoderInterrupt();
@@ -185,7 +201,6 @@ void setupEncoders() {
       found_encoders[enc] = true;
     }
   }
-  SerialUSB.println("Encoders started");
 }
 
 void setupCapacativeTouchSensor() {
@@ -193,22 +208,20 @@ void setupCapacativeTouchSensor() {
     SerialUSB.println("MPR121 not found, check wiring?");
     while (1);
   }
-  SerialUSB.println("MPR121 found!");
 }
 
 void setupDisplays() {
-  SerialUSB.println("Looking for Alphanumeric Displays");
   Wire.begin(); //Join I2C bus
   if (monthDisplay.begin(0x70) == false) {
     SerialUSB.println("Device did not acknowledge month dsiplay! Freezing.");
     while(1);
   }
-  if (yearDisplay.begin(0x71) == false) {
-    SerialUSB.println("Device did not acknowledge year display! Freezing.");
+  if (dayDisplay.begin(0x71) == false) {
+    SerialUSB.println("Device did not acknowledge day display! Freezing.");
     while(1);
   }
-  if (dayDisplay.begin(0x72) == false) {
-    SerialUSB.println("Device did not acknowledge day display! Freezing.");
+  if (yearDisplay.begin(0x72) == false) {
+    SerialUSB.println("Device did not acknowledge year display! Freezing.");
     while(1);
   }
   if (timezoneDisplay.begin(0x73) == false) {
@@ -216,7 +229,6 @@ void setupDisplays() {
     while(1);
   }
   
-  SerialUSB.println("Displays acknowledged.");
   monthDisplay.setBrightness(1);
   yearDisplay.setBrightness(1);
   dayDisplay.setBrightness(1);
@@ -267,5 +279,12 @@ uint32_t Wheel(byte WheelPos) {
 //// COMMS METHODS 
 void sendComputerCurrentData()
 {
-  // SerialUSB.println("MMDDYY.TMZN");
+  SerialUSB.print(currentMonthIndex);
+  SerialUSB.print("/");
+  SerialUSB.print(currentDay);
+  SerialUSB.print("/");
+  SerialUSB.print(currentYear);
+  SerialUSB.print("/");
+  SerialUSB.print(timezones[currentTimezoneIndex]);
+  SerialUSB.println("");
 }
