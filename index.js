@@ -38,7 +38,7 @@ SerialPort.list().then(ports => {
   console.log("checking serial ports");
   for (let port of ports) {
     console.log(port.path);
-    if (port.path.includes('usb')) {
+    if (port.path.includes('usb') || port.path.includes('tty')) {
       arduinos.push(new PhysicalControls(port.path, (data) => {
         console.log("callback function")
         console.log("setting data for arduino: "+ data);
