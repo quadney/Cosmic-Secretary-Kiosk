@@ -16,7 +16,7 @@
 
 // COMMS 
 #define SKETCH_VERSION "Cosmic Secretary - Input Kiosk - Sydney Parcell 07/26/2022"
-#define ARDUINO_ADDRESS 1
+#define ARDUINO_ADDRESS 0
 
 // ALPHANUMERIC DISPLAYS
 HT16K33 monthDisplay;
@@ -79,8 +79,6 @@ void setup() {
 
   // setup outputs
   setupDisplays();
-
-  SerialUSB.println("0");
 }
 
 void loop() {
@@ -109,7 +107,7 @@ void checkCapSensor() {
     }
     // if it *was* touched and now *isnt*, alert!
     if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
-      SerialUSB.println(";");
+     sendComputerEndData();
     }
   }
 
@@ -277,9 +275,15 @@ uint32_t Wheel(byte WheelPos) {
 }
 
 //// COMMS METHODS 
+void sendComputerEndData() {
+  SerialUSB.print(ARDUINO_ADDRESS);
+  SerialUSB.println(";");
+}
 void sendComputerCurrentData()
 {
-  SerialUSB.print(currentMonthIndex);
+  SerialUSB.print(ARDUINO_ADDRESS);
+  SerialUSB.print("/");
+  SerialUSB.print(currentMonthIndex + 1);
   SerialUSB.print("/");
   SerialUSB.print(currentDay);
   SerialUSB.print("/");

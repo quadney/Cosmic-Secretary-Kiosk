@@ -12,6 +12,7 @@
     "ephemeris": "^2.0.0",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.34",
-    "raspi": "^6.0.1"
+    "raspi": "^6.0.1",
+    "serialport": "^10.4.0"
   }
 }
