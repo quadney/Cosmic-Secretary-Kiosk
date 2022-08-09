@@ -16,7 +16,8 @@ class PhysicalControls {
     }
 
     writeJsonToArduino(json) {
-        let buf = JSON.stringify(json);
+        let data = {"T" : "D", "PL": json};
+        let buf = JSON.stringify(data);
         this.arduino.write(buf), function (err) {
             if (err) {
                 return console.log("Error writing to arduino", err.message);
