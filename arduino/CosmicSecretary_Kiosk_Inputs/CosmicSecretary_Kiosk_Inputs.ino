@@ -16,7 +16,12 @@
 
 // COMMS 
 #define SKETCH_VERSION "Cosmic Secretary - Input Kiosk - Sydney Parcell 07/26/2022"
-#define ARDUINO_ADDRESS 0
+#define ARDUINO_ADDRESS 1
+#include "ExploSerialJSON.h"
+
+ExploSerial CommChannel;
+StaticJsonDocument<PACKET_SIZE> DlJsonBuff = {};
+String StringBuff = "";
 
 // ALPHANUMERIC DISPLAYS
 HT16K33 monthDisplay;
@@ -73,6 +78,9 @@ void setup() {
   // wait for serial port to open
   while (!SerialUSB) delay(10);
 
+  // setup comms
+  setupComs();
+
   // setup inputs
   setupEncoders();
   setupCapacativeTouchSensor();
@@ -82,6 +90,8 @@ void setup() {
 }
 
 void loop() {
+  CommChannel.pollSerial();
+  
   uint16_t display_line = 1;
 
   // check capacative touch 
@@ -291,4 +301,21 @@ void sendComputerCurrentData()
   SerialUSB.print("/");
   SerialUSB.print(timezones[currentTimezoneIndex]);
   SerialUSB.println("");
+}
+
+// COMMS METHODS
+void setupComs() {
+  //Explo JSON stuff
+  CommChannel.setAddress(ARDUINO_ADDRESS);
+  CommChannel.setVersion(SKETCH_VERSION);
+  CommChannel.attachUploadCallback(commUploadCallback);
+  CommChannel.attachDownloadCallback(commDownloadCallback);
+}
+
+String commUploadCallback(void) {
+  return ("{}");
+}
+
+int commDownloadCallback(String payload) {
+  return 0;
 }
