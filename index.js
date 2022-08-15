@@ -47,7 +47,7 @@ const locationDict = {
 let arduinos = [];
 
 let person1Birthday = undefined;
-let person2Birthday = { venus: 'air', moon: 'earth', mercury: 'fire', person: '1' };
+let person2Birthday = undefined;
 
 SerialPort.list().then(ports => {
   console.log("checking serial ports");
