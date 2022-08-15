@@ -50,13 +50,9 @@ let person1Birthday = undefined;
 let person2Birthday = undefined;
 
 SerialPort.list().then(ports => {
-  console.log("checking serial ports");
   for (let port of ports) {
-    console.log(port.path);
-    if (port.path.includes('usb')) {
+    if (port.path.includes('usb') || port.path.includes('tty')) {
       arduinos.push(new PhysicalControls(port.path, (data) => {
-        console.log("callback function")
-        console.log("setting data for arduino: "+ data);
         let parsedData = parseDataFromArduino(data);
         if (parsedData) {
           setBirthdayDataForArduino(parsedData);
@@ -68,7 +64,7 @@ SerialPort.list().then(ports => {
     }
   }
 }).catch(err => {
-  // console.error(err);
+  console.error(err);
 });
 
 function sendDataToLEDArduino() {
@@ -96,13 +92,9 @@ function sendDataToLEDArduino() {
 function arduinoDataForPersons(person1, person2) {
   // might just be easier to do them all one by one 
   // venus
-  console.log("figuring out compatability");
   let intuition = isCompatable(person1.moon, person2.moon) ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
-  console.log(intuition);
   let love = isCompatable(person1.venus, person2.venus) ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
-  console.log(love);
   let communication = isCompatable(person1.mercury, person2.mercury) ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
-  console.log(communication);
 
   return "" + intuition + "" + love + "" + communication;
 }
@@ -150,7 +142,6 @@ function indexForElement(element) {
 }
 
 function setBirthdayDataForArduino(birthdayData) {
-  console.log(birthdayData);
   if (birthdayData.person == 0) {
     person1Birthday = birthdayData;
   }
@@ -161,7 +152,6 @@ function setBirthdayDataForArduino(birthdayData) {
 
 function parseDataFromArduino(data) {
   if (!data) {
-    console.error("data is undefined");
     return;
   }
 
@@ -171,8 +161,7 @@ function parseDataFromArduino(data) {
   }
 
   let birthday = data.split("/");
-  if(birthday.length !=ARDUINO_COMMS.LENGTH) {
-    console.log("error = not enough data ");
+  if(birthday.length != ARDUINO_COMMS.LENGTH) {
     return;
   }
   let dateString = buildDateString(birthday[ARDUINO_COMMS.MONTH], birthday[ARDUINO_COMMS.DAY], birthday[ARDUINO_COMMS.YEAR]);
@@ -218,7 +207,6 @@ function getElementForDegrees(deg) {
       }
   });
 
-  console.log(sign);
   return sign.element;
 }
 
