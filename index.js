@@ -24,12 +24,12 @@ const MEDALLION_INDEX = {
 }
 
 const ELEMENT_INDEX = {
-  DARK: 0,
   EARTH: 1,
   AIR: 2, 
   WATER: 3,
   FIRE: 4,
-  COMPATABLE: 5
+  COMPATABLE: 5,
+  DARK: 9,
 }
 
 const locationDict = {
@@ -47,13 +47,13 @@ const locationDict = {
 let arduinos = [];
 
 let person1Birthday = undefined;
-let person2Birthday = undefined;
+let person2Birthday = { venus: 'air', moon: 'earth', mercury: 'fire', person: '1' };
 
 SerialPort.list().then(ports => {
   console.log("checking serial ports");
   for (let port of ports) {
     console.log(port.path);
-    if (port.path.includes('usb') || port.path.includes('tty')) {
+    if (port.path.includes('usb')) {
       arduinos.push(new PhysicalControls(port.path, (data) => {
         console.log("callback function")
         console.log("setting data for arduino: "+ data);
@@ -68,7 +68,7 @@ SerialPort.list().then(ports => {
     }
   }
 }).catch(err => {
-  console.error(err);
+  // console.error(err);
 });
 
 function sendDataToLEDArduino() {
@@ -96,13 +96,15 @@ function sendDataToLEDArduino() {
 function arduinoDataForPersons(person1, person2) {
   // might just be easier to do them all one by one 
   // venus
-  let intuition = isCompatable(person1.moon, person2.moon);
-  let love = isCompatable(person1.venus, person2.venus);
-  let communication = isCompatable(person1.mercury, person2.mercury);
+  console.log("figuring out compatability");
+  let intuition = isCompatable(person1.moon, person2.moon) ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
+  console.log(intuition);
+  let love = isCompatable(person1.venus, person2.venus) ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
+  console.log(love);
+  let communication = isCompatable(person1.mercury, person2.mercury) ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
+  console.log(communication);
 
-  return "" + intuition ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK + 
-    "" + love ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK +
-    "" + communication ? ELEMENT_INDEX.COMPATABLE : ELEMENT_INDEX.DARK;
+  return "" + intuition + "" + love + "" + communication;
 }
 
 function isCompatable(element1, element2) {
@@ -148,6 +150,7 @@ function indexForElement(element) {
 }
 
 function setBirthdayDataForArduino(birthdayData) {
+  console.log(birthdayData);
   if (birthdayData.person == 0) {
     person1Birthday = birthdayData;
   }
@@ -172,14 +175,12 @@ function parseDataFromArduino(data) {
     console.log("error = not enough data ");
     return;
   }
-  console.log(birthday);
   let dateString = buildDateString(birthday[ARDUINO_COMMS.MONTH], birthday[ARDUINO_COMMS.DAY], birthday[ARDUINO_COMMS.YEAR]);
   let date = new Date(dateString);
   let location = locationDict[birthday[ARDUINO_COMMS.TIMEZONE]];
   let ephemeris_result = ephemeris.getAllPlanets(date, location.long, location.lat, 0);
   let results = burningManChartForPlanets(ephemeris_result);
   results.person = birthday[ARDUINO_COMMS.ID];
-  console.log(results);
   return results;
 }
 
