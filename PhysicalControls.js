@@ -9,8 +9,7 @@ class PhysicalControls {
         this.callback = callback;
         this.parser = this.arduino.pipe(new ReadlineParser({ delimiter: '\r\n' }))
         this.parser.on('data', data => {
-            console.log("received data")
-            console.log(data);
+            console.log("received data: ", data);
             callback(data);
         });
     }
@@ -18,7 +17,6 @@ class PhysicalControls {
     writeJsonToArduino(json) {
         let data = {"T" : "D", "PL": json};
         let buf = JSON.stringify(data);
-        console.log("sending: ", buf);
         this.arduino.write(buf), function (err) {
             if (err) {
                 return console.log("Error writing to arduino", err.message);

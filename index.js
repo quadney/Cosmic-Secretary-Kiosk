@@ -51,7 +51,7 @@ let person2Birthday = undefined;
 
 SerialPort.list().then(ports => {
   for (let port of ports) {
-    if (port.path.includes('usb') || port.path.includes('tty')) {
+    if (port.path.includes('usb') || port.path.includes('tty') && !port.path.includes('ttyAMA0') && !port.path.includes('ttyS0')) {
       arduinos.push(new PhysicalControls(port.path, (data) => {
         let parsedData = parseDataFromArduino(data);
         if (parsedData) {
