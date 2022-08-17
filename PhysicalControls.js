@@ -12,7 +12,6 @@ class PhysicalControls {
         this.callback = callback;
         this.parser = this.arduino.pipe(new ReadlineParser({ delimiter: '\r\n' }))
         this.parser.on('data', data => {
-            console.log("received data: ", data);
             if (this.pinging) {
                 if (data["T"] == "A") {
                     this.pinging = false;

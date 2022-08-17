@@ -51,7 +51,7 @@ let person2Birthday = undefined;
 
 SerialPort.list().then(ports => {
   for (let port of ports) {
-    if (port.path.includes('usb') || port.path.includes('tty') && !port.path.includes('ttyAMA0') && !port.path.includes('ttyS0')) {
+    if (port.path.includes('usb') || port.path.includes('tty') && !port.path.includes('ttyAMA0') && !port.path.includes('ttyS0') && !port.path.includes('Bluetooth') && !port.path.includes('UEBOOM')) {
       arduinos.push(new PhysicalControls(port.path, (data) => {
         let parsedData = parseDataFromArduino(data);
         if (parsedData) {
@@ -69,16 +69,19 @@ SerialPort.list().then(ports => {
 
 function sendDataToLEDArduino() {
   // { venus: 'fire', moon: 'air', mercury: 'earth', person: '0' }
-  let payload;
+  let payload = "999";
   if (person1Birthday && person2Birthday) {
+    console.log('person 1 birthday and person 2 birthday exist');
     // if both people have their hand on the thing, show what they have in common
     // check each value and see how they compare 
     payload = arduinoDataForPersons(person1Birthday, person2Birthday);
   }
   else if (person1Birthday) {
+    console.log('just person 1 birthday')
     payload = arduinoDataForPerson(person1Birthday);
   }
   else if (person2Birthday) {
+    console.log("just person 2 birthday");
     payload = arduinoDataForPerson(person2Birthday);
   }
 
@@ -115,6 +118,9 @@ function isCompatable(element1, element2) {
 }
 
 function arduinoDataForPerson(personData) {
+  // if (!personData) {
+  //   return "999";
+  // }
   //{ venus: 'fire', moon: 'air', mercury: 'earth', person: '0' }
   let intuitionIndex = indexForElement(personData.moon);
   let loveIndex = indexForElement(personData.venus);
@@ -136,18 +142,20 @@ function indexForElement(element) {
   else if (element == "earth") {
     return ELEMENT_INDEX.EARTH;
   }
-  else {
-    return ELEMENT_INDEX.DARK;
-  }
+  
+  return ELEMENT_INDEX.DARK;
 }
 
 function setBirthdayDataForArduino(birthdayData) {
   if (birthdayData.person == 0) {
-    person1Birthday = birthdayData;
+    person1Birthday = birthdayData.birthday;
   }
   else if (birthdayData.person == 1) {
-    person2Birthday = birthdayData;
+    person2Birthday = birthdayData.birthday;
   }
+
+  console.log("person 0: ", person1Birthday);
+  console.log("person 1: ", person2Birthday);
 }
 
 function parseDataFromArduino(data) {
@@ -157,7 +165,7 @@ function parseDataFromArduino(data) {
 
   if (data.includes(";")) {
     let arduinoId = data.split(";");
-    return {person: arduinoId[0]};
+    return { person: parseInt(arduinoId[0]), birthday: undefined };
   }
 
   let birthday = data.split("/");
@@ -169,8 +177,10 @@ function parseDataFromArduino(data) {
   let location = locationDict[birthday[ARDUINO_COMMS.TIMEZONE]];
   let ephemeris_result = ephemeris.getAllPlanets(date, location.long, location.lat, 0);
   let results = burningManChartForPlanets(ephemeris_result);
-  results.person = birthday[ARDUINO_COMMS.ID];
-  return results;
+  return {
+    person: birthday[ARDUINO_COMMS.ID],
+    birthday: results
+  };
 }
 
 function buildDateString(month, day, year) {
