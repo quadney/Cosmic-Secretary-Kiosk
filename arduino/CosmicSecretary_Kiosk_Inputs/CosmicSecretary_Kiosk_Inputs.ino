@@ -16,7 +16,7 @@
 
 // COMMS 
 #define SKETCH_VERSION "Cosmic Secretary - Input Kiosk - Sydney Parcell 07/26/2022"
-#define ARDUINO_ADDRESS 1
+#define ARDUINO_ADDRESS 0
 #include "ExploSerialJSON.h"
 
 ExploSerial CommChannel;
@@ -109,14 +109,17 @@ void loop() {
 void checkCapSensor() {
   // Get the currently touched pads
   currtouched = cap.touched();
-  
+
+  SerialUSB.println(currTouched);
   for (uint8_t i=0; i<12; i++) {
     // it if *is* touched and *wasnt* touched before, alert!
     if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
+      SerialUSB.println("touching hand");
       sendComputerCurrentData();
     }
     // if it *was* touched and now *isnt*, alert!
     if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
+      SerialUSB.println("no longer touching hand");
      sendComputerEndData();
     }
   }

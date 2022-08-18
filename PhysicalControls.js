@@ -12,6 +12,7 @@ class PhysicalControls {
         this.callback = callback;
         this.parser = this.arduino.pipe(new ReadlineParser({ delimiter: '\r\n' }))
         this.parser.on('data', data => {
+            console.log("received from arduino: "+data);
             if (this.pinging) {
                 if (data["T"] == "A") {
                     this.pinging = false;
@@ -21,9 +22,8 @@ class PhysicalControls {
             else if (data["T"] == "B") {
                 this.id = parseInt(data["PL"]);
             }
-            else {
-                callback(data);
-            }
+
+            callback(data);
         });
 
         // this.pingInterval = setInterval();

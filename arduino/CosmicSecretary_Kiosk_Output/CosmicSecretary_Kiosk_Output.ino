@@ -73,7 +73,6 @@ int cycleHueIndex = INTUITION;
 void setup() {
   Serial.begin(115200);///make into a #define
   while (!Serial);//////////////////remove
-  Serial.println("setting up serial comms");
   setupComs();
 
   FastLED.addLeds<LED_TYPE,DATA_PIN,CLK_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
@@ -102,8 +101,12 @@ void loop() {
   }
   FastLED.show();
 
-  EVERY_N_MILLISECONDS( 10 ) { updateBreatheValue(); }
-  EVERY_N_MILLISECONDS( 800 ) { cycleMedallionLEDs(); }  
+  EVERY_N_MILLISECONDS( 10 ) { 
+    updateBreatheValue(); 
+  }
+  EVERY_N_MILLISECONDS( 600 ) { 
+    cycleMedallionLEDs(); 
+  }  
 }
 
 void setupComs() {
@@ -134,6 +137,7 @@ int commDownloadCallback(String payload) {
     isAttractMode = false;
     turnOnElements(false);
     isCompatability = false;
+    animateBeforeShowing();
     updateForMedallion(INTUITION, lightValueString.substring(D_INTUITION, D_LOVE));
     updateForMedallion(LOVE, lightValueString.substring(D_LOVE, D_COMMUNICATION));
     updateForMedallion(COMMUNICATION, lightValueString.substring(D_COMMUNICATION));
@@ -145,6 +149,7 @@ int commDownloadCallback(String payload) {
     isAttractMode = false;
     turnOnElements(false);
     isCompatability = true;
+    animateBeforeShowing();
     updateForMedallion(INTUITION, lightValueString.substring(D_INTUITION, D_LOVE));
     updateForMedallion(LOVE, lightValueString.substring(D_LOVE, D_COMMUNICATION));
     updateForMedallion(COMMUNICATION, lightValueString.substring(D_COMMUNICATION));
@@ -153,8 +158,21 @@ int commDownloadCallback(String payload) {
   return 0;
 }
 
+void animateBeforeShowing() {
+  // do 3 cycles of white
+  int i = 0; 
+  for (int j = 0; j < 6; j++) {
+    leds[INTUITION_INDEX] = CHSV(0, 0, i == 0 ? 255 : 0);
+    leds[LOVE_INDEX] = CHSV(0, 0, i == 1 ? 255 : 0);
+    leds[COMMUNICATION_INDEX] = CHSV(0, 0, i == 2 ? 255 : 0);
+    i++;
+    i %= 3;
+    FastLED.show();
+    delay(150);
+  }
+}
+
 void updateForMedallion(int medallion_index, String colorIndex) {
-  Serial.println(colorIndex);
   int dataIndex = colorIndex.toInt();
   if (dataIndex == 9) {
     // turn off this medallion
@@ -227,7 +245,7 @@ void updateBreatheValue() {
   if (breatheValue >= 255) {
     addBreathe = false;
   }
-  else if (breatheValue <= 64) {
+  else if (breatheValue <= 100) {
     addBreathe = true;
   }
 }
@@ -241,7 +259,7 @@ void cycleMedallionLEDs() {
     }
     hue[cycleHueIndex] = DEFAULT_HUE;
     isOn[cycleHueIndex] = true;
-  } 
+  }
 }
 
 void setAttractMode(bool isInAttractMode) {
