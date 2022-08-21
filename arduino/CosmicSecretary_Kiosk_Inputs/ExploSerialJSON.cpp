@@ -40,28 +40,28 @@ void ExploSerial::processCall(void)
 int ExploSerial::getCall(void)
 { 
   int gotCall = 0;
-  if (Serial.available()) {
-//    String temp = Serial.readStringUntil(LF);
-//    Serial.println(temp);
-    DeserializationError error = deserializeJson(PacketBuff, Serial);
+  if (SerialUSB.available()) {
+//    String temp = SerialUSB.readStringUntil(LF);
+//    SerialUSB.println(temp);
+    DeserializationError error = deserializeJson(PacketBuff, SerialUSB);
     if (error) {
       #ifdef DEBUG   
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
+      SerialUSB.print(F("deserializeJson() failed: "));
+      SerialUSB.println(error.f_str());
       #endif
       gotCall = -1;  // flag bad packet
     }
     else {
       #ifdef DEBUG   
-      serializeJson(PacketBuff, Serial);  // echo packet
-      Serial.println();
+      serializeJson(PacketBuff, SerialUSB);  // echo packet
+      SerialUSB.println();
       #endif
       gotCall = 1;
     }   
     // dump UART rx buffer?
-    Serial.println("clearing buffer");
-    while(Serial.available()) {
-      char garbage = Serial.read();
+    SerialUSB.println("clearing buffer");
+    while(SerialUSB.available()) {
+      char garbage = SerialUSB.read();
     }
   }
   return gotCall;
@@ -103,8 +103,8 @@ void ExploSerial::sendVersion(void)
 
 void ExploSerial::sendPacket(void)
 {
-  serializeJson(PacketBuff, Serial);
-  Serial.write(LF);  // need a LF as a final packet delimiter
+  serializeJson(PacketBuff, SerialUSB);
+  SerialUSB.write(LF);  // need a LF as a final packet delimiter
   PacketBuff = {};// clean up output buffer
 }
 

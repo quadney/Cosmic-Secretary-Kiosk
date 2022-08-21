@@ -16,7 +16,7 @@
 
 // COMMS 
 #define SKETCH_VERSION "Cosmic Secretary - Input Kiosk - Sydney Parcell 07/26/2022"
-#define ARDUINO_ADDRESS 0
+#define ARDUINO_ADDRESS 1
 #include "ExploSerialJSON.h"
 
 ExploSerial CommChannel;
@@ -32,7 +32,7 @@ HT16K33 timezoneDisplay;
 // CAPACATIVE TOUCH SENSOR
 Adafruit_MPR121 cap = Adafruit_MPR121();
 uint16_t lasttouched = 0;
-uint16_t currtouched = 0;
+uint16_t currTouched = 0;
 uint16_t TOUCH_PIN = 5;
 #ifndef _BV
 #define _BV(bit) (1 << (bit)) 
@@ -42,15 +42,16 @@ uint16_t TOUCH_PIN = 5;
 #define SS_SWITCH 24      // this is the pin on the encoder connected to switch
 #define SEESAW_BASE_ADDR 0x36  // I2C address, starts with 0x36
 // create 4 encoders!
-Adafruit_seesaw encoders[4];
+Adafruit_seesaw encoders[5];
 //TODO: make this an enum, forget how to do in arduino
 #define MONTH_ENCODER 0
 #define DAY_ENCODER 1
 #define YEAR_ENCODER 2
 #define TIMEZONE_ENCODER 3
+#define THRESHOLD_ENCODER 4
 
-int32_t encoder_positions[] = {0, 0, 0, 0};
-bool found_encoders[] = {false, false, false, false};
+int32_t encoder_positions[] = {0, 0, 0, 0, 0};
+bool found_encoders[] = {false, false, false, false, false};
 
 // PROGRAM DATA
 #define MONTHS 12
@@ -108,24 +109,39 @@ void loop() {
 //// LOOPING METHODS
 void checkCapSensor() {
   // Get the currently touched pads
-  currtouched = cap.touched();
+  currTouched = cap.touched();
 
-  SerialUSB.println(currTouched);
   for (uint8_t i=0; i<12; i++) {
     // it if *is* touched and *wasnt* touched before, alert!
-    if ((currtouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
+    if ((currTouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
       SerialUSB.println("touching hand");
       sendComputerCurrentData();
     }
     // if it *was* touched and now *isnt*, alert!
-    if (!(currtouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
+    if (!(currTouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
       SerialUSB.println("no longer touching hand");
      sendComputerEndData();
     }
   }
 
   // reset our state
-  lasttouched = currtouched;
+  lasttouched = currTouched;
+
+  return;
+  SerialUSB.print("\t\t\t\t\t\t\t\t\t\t\t\t\t 0x"); SerialUSB.println(cap.touched(), HEX);
+  SerialUSB.print("Filt: ");
+  for (uint8_t i=0; i<12; i++) {
+    SerialUSB.print(cap.filteredData(i)); SerialUSB.print("\t");
+  }
+  SerialUSB.println();
+  SerialUSB.print("Base: ");
+  for (uint8_t i=0; i<12; i++) {
+    SerialUSB.print(cap.baselineData(i)); SerialUSB.print("\t");
+  }
+  SerialUSB.println();
+  
+  // put a delay so it isn't overwhelming
+  delay(100);
 }
 
 void checkEncoders() {
@@ -158,6 +174,9 @@ void checkEncoders() {
         currentDay += deltaChange;
          checkCurrentDay();
        }
+       else if (enc == THRESHOLD_ENCODER) {
+        
+       }
        encoder_positions[enc] = new_position;
      }
   }
@@ -185,7 +204,7 @@ void checkCurrentDay() {
 
 //// SETUP METHODS
 void setupEncoders() {
-  for (uint8_t enc=0; enc<sizeof(found_encoders); enc++) {
+  for (uint8_t enc= 0; enc<sizeof(found_encoders); enc++) {
     // See if we can find encoders on this address 
     if (! encoders[enc].begin(SEESAW_BASE_ADDR + enc)) {
       SerialUSB.print("Couldn't find encoder #");
@@ -294,6 +313,7 @@ void sendComputerEndData() {
 }
 void sendComputerCurrentData()
 {
+  SerialUSB.println("ARDUINO: "+ String(ARDUINO_ADDRESS) + " SENDING DATA:");
   SerialUSB.print(ARDUINO_ADDRESS);
   SerialUSB.print("/");
   SerialUSB.print(currentMonthIndex + 1);
