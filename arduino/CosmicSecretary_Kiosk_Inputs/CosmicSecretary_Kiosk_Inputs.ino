@@ -73,10 +73,10 @@ String timezones[] = {"N-AM", "S-AM", "EURO", "AFRI", "AUST", "OCEA", "W-AS", "C
 #define TOUCH_ADDRESS 0x02
 #define RELEASE_ADDRESS 0x03
 
-#define TOUCH_THRESHOLD 128
-#define RELEASE_THRESHOLD 64
-int currentTouchThreshold = 12;
-int currentReleaseThreshold = 6;
+#define TOUCH_THRESHOLD 32
+#define RELEASE_THRESHOLD 32
+int currentTouchThreshold = 32;
+int currentReleaseThreshold = 32;
 
 void setup() {
   SerialUSB.begin(115200);
@@ -114,11 +114,13 @@ void checkCapSensor() {
     if ((currTouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
       SerialUSB.println("touching hand");
       sendComputerCurrentData();
-      SerialUSB.print("Filt: ");
+      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+      SerialUSB.print(" Filt: ");
       SerialUSB.print(cap.filteredData(i)); 
       SerialUSB.println();
-      
-      SerialUSB.print("Base: ");
+
+      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+      SerialUSB.print(" Base: ");
       SerialUSB.print(cap.baselineData(i)); 
       SerialUSB.println();
     }
@@ -126,11 +128,13 @@ void checkCapSensor() {
     if (!(currTouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
       SerialUSB.println("no longer touching hand");
       sendComputerEndData();
-      SerialUSB.print("Filt: ");
+      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+      SerialUSB.print(" Filt: ");
       SerialUSB.print(cap.filteredData(i)); 
       SerialUSB.println();
-      
-      SerialUSB.print("Base: ");
+
+      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+      SerialUSB.print(" Base: ");
       SerialUSB.print(cap.baselineData(i)); 
       SerialUSB.println();
     }
