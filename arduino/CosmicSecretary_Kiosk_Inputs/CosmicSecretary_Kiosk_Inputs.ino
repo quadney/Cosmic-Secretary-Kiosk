@@ -1,14 +1,6 @@
-#include <Adafruit_MPR121.h>
+//#include <Adafruit_MPR121.h>
 
-#include <Adafruit_miniTFTWing.h>
-#include <seesaw_servo.h>
-#include <Adafruit_NeoKey_1x4.h>
-#include <Adafruit_Crickit.h>
 #include <seesaw_neopixel.h>
-#include <seesaw_spectrum.h>
-#include <Adafruit_TFTShield18.h>
-#include <seesaw_motor.h>
-#include <Adafruit_NeoTrellis.h>
 #include <Adafruit_seesaw.h>
 
 #include <SparkFun_Alphanumeric_Display.h>
@@ -24,31 +16,47 @@ HT16K33 yearDisplay;
 HT16K33 dayDisplay;
 HT16K33 timezoneDisplay;
 
-// CAPACATIVE TOUCH SENSOR
-Adafruit_MPR121 cap = Adafruit_MPR121();
-uint16_t lasttouched = 0;
-uint16_t currTouched = 0;
-uint16_t TOUCH_PIN = 5;
-#ifndef _BV
-#define _BV(bit) (1 << (bit)) 
-#endif
+//// CAPACATIVE TOUCH SENSOR
+//Adafruit_MPR121 cap = Adafruit_MPR121();
+//uint16_t lasttouched = 0;
+//uint16_t currTouched = 0;
+//uint16_t TOUCH_PIN = 5;
+//#ifndef _BV
+//#define _BV(bit) (1 << (bit)) 
+//#endif
+//#define TOUCH_ADDRESS 0x02
+//#define RELEASE_ADDRESS 0x03
+//
+//#define TOUCH_THRESHOLD 32
+//#define RELEASE_THRESHOLD 32
+//int currentTouchThreshold = 32;
+//int currentReleaseThreshold = 32;
 
 // ENCODERS
 #define SS_SWITCH 24      // this is the pin on the encoder connected to switch
 #define SEESAW_BASE_ADDR 0x36  // I2C address, starts with 0x36
 // create 4 encoders!
-Adafruit_seesaw encoders[8];
+Adafruit_seesaw encoders[4];
 //TODO: make this an enum, forget how to do in arduino
 #define MONTH_ENCODER 0
 #define DAY_ENCODER 1
 #define YEAR_ENCODER 2
 #define TIMEZONE_ENCODER 3
-#define TOUCH_THRESHOLD_ENCODER 5
-#define RELEASE_THRESHOLD_ENCODER 7
+//#define TOUCH_THRESHOLD_ENCODER 5
+//#define RELEASE_THRESHOLD_ENCODER 7
 
-int32_t encoder_positions[] = {0, 0, 0, 0, 0, 0, 0, 0};
-bool found_encoders[] = {false, false, false, false, false, false, false, false};
-bool encoder_buttons[] = {false, false, false, false, false, false, false, false};
+int32_t encoder_positions[] = {0, 0, 0, 0};
+bool found_encoders[] = {false, false, false, false};
+bool encoder_buttons[] = {false, false, false, false};
+
+// BUTTONS
+#define BUTTON_ADDRESS 0x3A
+#define BUTTON_SWITCH_1 18
+#define BUTTON_LED_1 12
+Adafruit_seesaw buttons;
+int currentButton1LEDValue = 0;
+bool addBreathe = true;
+bool buttonPressed = false;
 
 // PROGRAM DATA
 #define MONTHS 12
@@ -70,14 +78,6 @@ int currentDay = START_DAY;
 int currentTimezoneIndex = 0;
 String timezones[] = {"N-AM", "S-AM", "EURO", "AFRI", "AUST", "OCEA", "W-AS", "C-AS", "E-AS"};
 
-#define TOUCH_ADDRESS 0x02
-#define RELEASE_ADDRESS 0x03
-
-#define TOUCH_THRESHOLD 32
-#define RELEASE_THRESHOLD 32
-int currentTouchThreshold = 32;
-int currentReleaseThreshold = 32;
-
 void setup() {
   SerialUSB.begin(115200);
 
@@ -85,8 +85,9 @@ void setup() {
   while (!SerialUSB) delay(10);
 
   // setup inputs
+  setupButtons();
   setupEncoders();
-  setupCapacativeTouchSensor();
+//  setupCapacativeTouchSensor();
 
   // setup outputs
   setupDisplays();
@@ -94,10 +95,13 @@ void setup() {
 
 void loop() {
   // check capacative touch 
-  checkCapSensor();
+//  checkCapSensor();
 
   // check encoders
   checkEncoders();
+
+  // check buttons
+  checkButtons();
 
   // don't overwhelm serial port
   yield();
@@ -105,43 +109,75 @@ void loop() {
 }
 
 //// LOOPING METHODS
-void checkCapSensor() {
-  // Get the currently touched pads
-  currTouched = cap.touched();
+//void checkCapSensor() {
+//  // Get the currently touched pads
+//  currTouched = cap.touched();
+//
+//  for (uint8_t i=0; i<12; i++) {
+//    // it if *is* touched and *wasnt* touched before, alert!
+//    if ((currTouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
+//      SerialUSB.println("touching hand");
+//      sendComputerCurrentData();
+//      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+//      SerialUSB.print(" Filt: ");
+//      SerialUSB.print(cap.filteredData(i)); 
+//      SerialUSB.println();
+//
+//      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+//      SerialUSB.print(" Base: ");
+//      SerialUSB.print(cap.baselineData(i)); 
+//      SerialUSB.println();
+//    }
+//    // if it *was* touched and now *isnt*, alert!
+//    if (!(currTouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
+//      SerialUSB.println("no longer touching hand");
+//      sendComputerEndData();
+//      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+//      SerialUSB.print(" Filt: ");
+//      SerialUSB.print(cap.filteredData(i)); 
+//      SerialUSB.println();
+//
+//      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
+//      SerialUSB.print(" Base: ");
+//      SerialUSB.print(cap.baselineData(i)); 
+//      SerialUSB.println();
+//    }
+//  }
+//
+//  // reset our state
+//  lasttouched = currTouched;
+//}
 
-  for (uint8_t i=0; i<12; i++) {
-    // it if *is* touched and *wasnt* touched before, alert!
-    if ((currTouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
-      SerialUSB.println("touching hand");
+void checkButtons() {
+  if (!buttons.digitalRead(BUTTON_SWITCH_1)) {
+    if (!buttonPressed) {
+      SerialUSB.println("pressed button");
+      buttonPressed = true;
       sendComputerCurrentData();
-      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
-      SerialUSB.print(" Filt: ");
-      SerialUSB.print(cap.filteredData(i)); 
-      SerialUSB.println();
-
-      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
-      SerialUSB.print(" Base: ");
-      SerialUSB.print(cap.baselineData(i)); 
-      SerialUSB.println();
-    }
-    // if it *was* touched and now *isnt*, alert!
-    if (!(currTouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
-      SerialUSB.println("no longer touching hand");
-      sendComputerEndData();
-      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
-      SerialUSB.print(" Filt: ");
-      SerialUSB.print(cap.filteredData(i)); 
-      SerialUSB.println();
-
-      SerialUSB.print("Arduino: "+ String(ARDUINO_ADDRESS));
-      SerialUSB.print(" Base: ");
-      SerialUSB.print(cap.baselineData(i)); 
-      SerialUSB.println();
     }
   }
+  else if (buttonPressed) {
+    buttonPressed = false;
+    sendComputerEndData();
+    currentButton1LEDValue = 255;
+    addBreathe = false;
+  }
+  else {
+    if (addBreathe) {
+      currentButton1LEDValue++;
+    }
+    else {
+      currentButton1LEDValue--;
+    }
 
-  // reset our state
-  lasttouched = currTouched;
+    if (currentButton1LEDValue >= 255) {
+      addBreathe = false;
+    }
+    else if (currentButton1LEDValue <= 100) {
+      addBreathe = true;
+    }
+  }
+  buttons.analogWrite(BUTTON_LED_1, currentButton1LEDValue);
 }
 
 void checkEncoders() {
@@ -174,16 +210,16 @@ void checkEncoders() {
         currentDay += deltaChange;
         checkCurrentDay();
        }
-       else if (enc == TOUCH_THRESHOLD_ENCODER) {
-          currentTouchThreshold += deltaChange;
-          currentTouchThreshold = constrain(currentTouchThreshold, 0, 255);
-          setupCapacativeTouchSensor();
-       }
-       else if (enc == RELEASE_THRESHOLD_ENCODER) {
-          currentReleaseThreshold += deltaChange;
-          currentReleaseThreshold = constrain(currentReleaseThreshold, 0, 255);
-          setupCapacativeTouchSensor();
-       }
+//       else if (enc == TOUCH_THRESHOLD_ENCODER) {
+//          currentTouchThreshold += deltaChange;
+//          currentTouchThreshold = constrain(currentTouchThreshold, 0, 255);
+//          setupCapacativeTouchSensor();
+//       }
+//       else if (enc == RELEASE_THRESHOLD_ENCODER) {
+//          currentReleaseThreshold += deltaChange;
+//          currentReleaseThreshold = constrain(currentReleaseThreshold, 0, 255);
+//          setupCapacativeTouchSensor();
+//       }
        encoder_positions[enc] = new_position;
      }
   }
@@ -210,6 +246,15 @@ void checkCurrentDay() {
 }
 
 //// SETUP METHODS
+void setupButtons() {
+  if (!buttons.begin(BUTTON_ADDRESS)) {
+    SerialUSB.println(F("buttons board not found!"));
+    while(1) delay(10);
+  }
+
+  buttons.pinMode(BUTTON_SWITCH_1, INPUT_PULLUP);
+  buttons.analogWrite(BUTTON_LED_1, currentButton1LEDValue);
+}
 void setupEncoders() {
   for (uint8_t enc= 0; enc<sizeof(found_encoders); enc++) {
     // See if we can find encoders on this address 
@@ -241,14 +286,14 @@ void setupEncoders() {
   }
 }
 
-void setupCapacativeTouchSensor() {
-  SerialUSB.println("setting up cap sensor: "+ String(currentTouchThreshold) + " / " + String(currentReleaseThreshold));
-  if (!cap.begin(0x5A)) {
-    SerialUSB.println("MPR121 not found, check wiring?");
-    while (1);
-  }
-  cap.setThresholds(currentTouchThreshold, currentReleaseThreshold);
-}
+//void setupCapacativeTouchSensor() {
+//  SerialUSB.println("setting up cap sensor: "+ String(currentTouchThreshold) + " / " + String(currentReleaseThreshold));
+//  if (!cap.begin(0x5A)) {
+//    SerialUSB.println("MPR121 not found, check wiring?");
+//    while (1);
+//  }
+//  cap.setThresholds(currentTouchThreshold, currentReleaseThreshold);
+//}
 
 void setupDisplays() {
   Wire.begin(); //Join I2C bus
