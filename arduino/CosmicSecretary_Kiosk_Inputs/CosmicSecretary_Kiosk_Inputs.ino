@@ -17,11 +17,6 @@
 // COMMS 
 #define SKETCH_VERSION "Cosmic Secretary - Input Kiosk - Sydney Parcell 07/26/2022"
 #define ARDUINO_ADDRESS 1
-#include "ExploSerialJSON.h"
-
-ExploSerial CommChannel;
-StaticJsonDocument<PACKET_SIZE> DlJsonBuff = {};
-String StringBuff = "";
 
 // ALPHANUMERIC DISPLAYS
 HT16K33 monthDisplay;
@@ -42,16 +37,18 @@ uint16_t TOUCH_PIN = 5;
 #define SS_SWITCH 24      // this is the pin on the encoder connected to switch
 #define SEESAW_BASE_ADDR 0x36  // I2C address, starts with 0x36
 // create 4 encoders!
-Adafruit_seesaw encoders[5];
+Adafruit_seesaw encoders[8];
 //TODO: make this an enum, forget how to do in arduino
 #define MONTH_ENCODER 0
 #define DAY_ENCODER 1
 #define YEAR_ENCODER 2
 #define TIMEZONE_ENCODER 3
-#define THRESHOLD_ENCODER 4
+#define TOUCH_THRESHOLD_ENCODER 5
+#define RELEASE_THRESHOLD_ENCODER 7
 
-int32_t encoder_positions[] = {0, 0, 0, 0, 0};
-bool found_encoders[] = {false, false, false, false, false};
+int32_t encoder_positions[] = {0, 0, 0, 0, 0, 0, 0, 0};
+bool found_encoders[] = {false, false, false, false, false, false, false, false};
+bool encoder_buttons[] = {false, false, false, false, false, false, false, false};
 
 // PROGRAM DATA
 #define MONTHS 12
@@ -73,14 +70,19 @@ int currentDay = START_DAY;
 int currentTimezoneIndex = 0;
 String timezones[] = {"N-AM", "S-AM", "EURO", "AFRI", "AUST", "OCEA", "W-AS", "C-AS", "E-AS"};
 
+#define TOUCH_ADDRESS 0x02
+#define RELEASE_ADDRESS 0x03
+
+#define TOUCH_THRESHOLD 128
+#define RELEASE_THRESHOLD 64
+int currentTouchThreshold = 12;
+int currentReleaseThreshold = 6;
+
 void setup() {
   SerialUSB.begin(115200);
 
   // wait for serial port to open
   while (!SerialUSB) delay(10);
-
-  // setup comms
-  setupComs();
 
   // setup inputs
   setupEncoders();
@@ -91,10 +93,6 @@ void setup() {
 }
 
 void loop() {
-  CommChannel.pollSerial();
-  
-  uint16_t display_line = 1;
-
   // check capacative touch 
   checkCapSensor();
 
@@ -116,32 +114,30 @@ void checkCapSensor() {
     if ((currTouched & _BV(i)) && !(lasttouched & _BV(i)) && i == TOUCH_PIN) {
       SerialUSB.println("touching hand");
       sendComputerCurrentData();
+      SerialUSB.print("Filt: ");
+      SerialUSB.print(cap.filteredData(i)); 
+      SerialUSB.println();
+      
+      SerialUSB.print("Base: ");
+      SerialUSB.print(cap.baselineData(i)); 
+      SerialUSB.println();
     }
     // if it *was* touched and now *isnt*, alert!
     if (!(currTouched & _BV(i)) && (lasttouched & _BV(i)) && i == TOUCH_PIN) {
       SerialUSB.println("no longer touching hand");
-     sendComputerEndData();
+      sendComputerEndData();
+      SerialUSB.print("Filt: ");
+      SerialUSB.print(cap.filteredData(i)); 
+      SerialUSB.println();
+      
+      SerialUSB.print("Base: ");
+      SerialUSB.print(cap.baselineData(i)); 
+      SerialUSB.println();
     }
   }
 
   // reset our state
   lasttouched = currTouched;
-
-  return;
-  SerialUSB.print("\t\t\t\t\t\t\t\t\t\t\t\t\t 0x"); SerialUSB.println(cap.touched(), HEX);
-  SerialUSB.print("Filt: ");
-  for (uint8_t i=0; i<12; i++) {
-    SerialUSB.print(cap.filteredData(i)); SerialUSB.print("\t");
-  }
-  SerialUSB.println();
-  SerialUSB.print("Base: ");
-  for (uint8_t i=0; i<12; i++) {
-    SerialUSB.print(cap.baselineData(i)); SerialUSB.print("\t");
-  }
-  SerialUSB.println();
-  
-  // put a delay so it isn't overwhelming
-  delay(100);
 }
 
 void checkEncoders() {
@@ -154,28 +150,35 @@ void checkEncoders() {
        int deltaChange = encoder_positions[enc] - new_position;
        // compare previous encoder value to new
        if (enc == MONTH_ENCODER) {
-         currentMonthIndex += deltaChange;
-         currentMonthIndex = constrain(currentMonthIndex, 0, MONTHS - 1);
-         checkCurrentDay();
-         updateMonthDisplay();
+        currentMonthIndex += deltaChange;
+        currentMonthIndex = constrain(currentMonthIndex, 0, MONTHS - 1);
+        checkCurrentDay();
+        updateMonthDisplay();
        }
        else if (enc == YEAR_ENCODER) {
-        currentYear += deltaChange;
-        currentYear = constrain(currentYear, START_YEAR, END_YEAR);
-        checkCurrentDay();
-        updateYearDisplay();
+          currentYear += deltaChange;
+          currentYear = constrain(currentYear, START_YEAR, END_YEAR);
+          checkCurrentDay();
+          updateYearDisplay();
        }
        else if (enc == TIMEZONE_ENCODER) {
-         currentTimezoneIndex += deltaChange;
-         currentTimezoneIndex = constrain(currentTimezoneIndex, 0, TIMEZONES - 1);
-         updateTimezoneDisplay();
+          currentTimezoneIndex += deltaChange;
+          currentTimezoneIndex = constrain(currentTimezoneIndex, 0, TIMEZONES - 1);
+          updateTimezoneDisplay();
        }
        else if (enc == DAY_ENCODER) {
         currentDay += deltaChange;
-         checkCurrentDay();
+        checkCurrentDay();
        }
-       else if (enc == THRESHOLD_ENCODER) {
-        
+       else if (enc == TOUCH_THRESHOLD_ENCODER) {
+          currentTouchThreshold += deltaChange;
+          currentTouchThreshold = constrain(currentTouchThreshold, 0, 255);
+          setupCapacativeTouchSensor();
+       }
+       else if (enc == RELEASE_THRESHOLD_ENCODER) {
+          currentReleaseThreshold += deltaChange;
+          currentReleaseThreshold = constrain(currentReleaseThreshold, 0, 255);
+          setupCapacativeTouchSensor();
        }
        encoder_positions[enc] = new_position;
      }
@@ -212,6 +215,7 @@ void setupEncoders() {
     } 
     else {
       uint32_t version = ((encoders[enc].getVersion() >> 16) & 0xFFFF);
+      SerialUSB.println("found encoder: "+ String(enc));
       if (version != 4991){
         SerialUSB.print("Wrong firmware loaded? ");
         SerialUSB.println(version);
@@ -234,10 +238,12 @@ void setupEncoders() {
 }
 
 void setupCapacativeTouchSensor() {
+  SerialUSB.println("setting up cap sensor: "+ String(currentTouchThreshold) + " / " + String(currentReleaseThreshold));
   if (!cap.begin(0x5A)) {
     SerialUSB.println("MPR121 not found, check wiring?");
     while (1);
   }
+  cap.setThresholds(currentTouchThreshold, currentReleaseThreshold);
 }
 
 void setupDisplays() {
@@ -277,14 +283,14 @@ void updateMonthDisplay() {
   monthDisplay.print(months[currentMonthIndex]);
 }
 
-void updateYearDisplay() {
-  yearDisplay.clear();
-  yearDisplay.print(currentYear);
-}
-
 void updateDayDisplay() {
   dayDisplay.clear();
   dayDisplay.print(currentDay);
+}
+
+void updateYearDisplay() {
+  yearDisplay.clear();
+  yearDisplay.print(currentYear);
 }
 
 void updateTimezoneDisplay() {
@@ -324,21 +330,4 @@ void sendComputerCurrentData()
   SerialUSB.print("/");
   SerialUSB.print(timezones[currentTimezoneIndex]);
   SerialUSB.println("");
-}
-
-// COMMS METHODS
-void setupComs() {
-  //Explo JSON stuff
-  CommChannel.setAddress(ARDUINO_ADDRESS);
-  CommChannel.setVersion(SKETCH_VERSION);
-  CommChannel.attachUploadCallback(commUploadCallback);
-  CommChannel.attachDownloadCallback(commDownloadCallback);
-}
-
-String commUploadCallback(void) {
-  return ("{}");
-}
-
-int commDownloadCallback(String payload) {
-  return 0;
 }
